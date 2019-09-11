@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
+import { useMachine } from "@xstate/react";
 import Modal from "./Modal";
 import styled from "@emotion/styled";
+import { characterModalMachine } from "../machine/CharacterModalMachine";
 
 const MiddleContainer = styled.div`
   position: absolute;
@@ -10,18 +12,16 @@ const MiddleContainer = styled.div`
 `;
 
 export default function Example() {
-  const [isModalOpen, setModalVisibility] = useState(false);
-  const onOpenModal = () => setModalVisibility(true);
-  const onCloseModal = () => setModalVisibility(false);
+  const [current, send, service] = useMachine(characterModalMachine, { devTools: true })
 
   return (
     <div className="container text-center">
       <MiddleContainer>
-        <button className="btn btn-primary rounded-0" onClick={onOpenModal}>
+        <button className="btn btn-primary rounded-0" onClick={() => send('TOGGLE')}>
           Open
         </button>
       </MiddleContainer>
-      <Modal show={isModalOpen} onClose={onCloseModal} />
+      <Modal show={current.matches('open')} onClose={() => send('TOGGLE')} service={service} />
     </div>
   );
 }

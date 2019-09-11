@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React from "react";
 import styled from "@emotion/styled";
 import Portal from "./Portal";
 import KnightSVG from "../assets/knight.svg";
 import WiseSVG from "../assets/wise.svg";
 import KnightEquipment from "./KnightEquipment";
 import WiseEquipment from "./WiseEquipment";
+import { useService } from "@xstate/react";
 
 const ModalBackground = styled.div`
   display: block;
@@ -69,25 +70,18 @@ const BackButton = styled.span`
   }
 `;
 
-const STEP = {
-  INVITING: "inviting",
-  SELECTING: "selecting"
-};
-
-const TYPE = {
-  KNIGHT: "knight",
-  WISE: "wise"
-};
-
 export default function Modal(props) {
-  const [step, setStep] = useState(STEP.SELECTING);
-  const [type, setType] = useState(TYPE.KNIGHT);
+  const [current, send] = useService(props.service);
 
   const renderKnightOption = () => (
     <Box>
       <Frame
-        selected={type === TYPE.KNIGHT}
-        onClick={() => setType(TYPE.KNIGHT)}
+        selected={current.matches("open.knight")}
+        onClick={() => {
+          if (current.matches("open.wise")) {
+            send("SWITCH_CHAR");
+          }
+        }}
       >
         <img height="70" src={KnightSVG} alt="knight" />
       </Frame>
@@ -100,7 +94,14 @@ export default function Modal(props) {
 
   const renderWiseOption = () => (
     <Box>
-      <Frame selected={type === TYPE.WISE} onClick={() => setType(TYPE.WISE)}>
+      <Frame
+        selected={current.matches("open.wise")}
+        onClick={() => {
+          if (current.matches("open.knight")) {
+            send("SWITCH_CHAR");
+          }
+        }}
+      >
         <img height="70" src={WiseSVG} alt="wise man" />
       </Frame>
       <ListContainer>
@@ -112,34 +113,31 @@ export default function Modal(props) {
   );
 
   const renderBody = () => {
-    switch (step) {
-      case STEP.SELECTING:
-        return (
-          <React.Fragment>
-            <div className="d-flex justify-content-center flex-grow-1 h-100">
-              {renderKnightOption()}
-              {renderWiseOption()}
-            </div>
-          </React.Fragment>
-        );
-      case STEP.INVITING:
-        switch (type) {
-          case TYPE.KNIGHT:
-            return <KnightEquipment />;
-          case TYPE.WISE:
-            return <WiseEquipment />;
-        }
-      default:
-        return null;
+    if (current.matches("open.knight.select_weapon.hold")) {
+      return <KnightEquipment />;
+    } else if (current.matches("open.wise.select_weapon.hold")) {
+      return <WiseEquipment />;
+    } else if (current.matches("open")) {
+      return (
+        <React.Fragment>
+          <div className="d-flex justify-content-center flex-grow-1 h-100">
+            {renderKnightOption()}
+            {renderWiseOption()}
+          </div>
+        </React.Fragment>
+      );
     }
   };
 
   const renderFooter = () => {
-    if (step === STEP.SELECTING) {
+    if (
+      current.matches("open.knight.select_character") ||
+      current.matches("open.wise.select_character")
+    ) {
       return (
         <button
           className="btn btn-primary btn-lg rounded-0"
-          onClick={() => setStep(STEP.INVITING)}
+          onClick={() => send("SWITCH")}
         >
           Next
         </button>
@@ -148,12 +146,15 @@ export default function Modal(props) {
 
     return (
       <React.Fragment>
-        <button onClick={props.onClose} className="btn btn-primary btn-lg btn-block rounded-0 mb-2">
+        <button
+          onClick={() => send("TOGGLE")}
+          className="btn btn-primary btn-lg btn-block rounded-0 mb-2"
+        >
           Done
         </button>
         <BackButton
           className="text-primary text-center"
-          onClick={() => setStep(STEP.SELECTING)}
+          onClick={() => send("SWITCH")}
         >
           Back
         </BackButton>
@@ -169,7 +170,7 @@ export default function Modal(props) {
         <Card className="card">
           <div className="card-body">
             <div className="d-flex flex-column h-100">
-              <Xmark className="text-right" onClick={props.onClose}>
+              <Xmark className="text-right" onClick={() => send("TOGGLE")}>
                 X
               </Xmark>
               {renderBody()}
